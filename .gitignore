@@ -1,0 +1,10 @@
+# macOS
+.DS_Store
+
+# Logs
+*.log
+
+# Assets
+Assets/photos/dynamicYi
+Assets/photos/dynamicYao
+Assets/photos/yao

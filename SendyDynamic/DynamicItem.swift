@@ -1,0 +1,536 @@
+//
+//  DynamicItem.swift
+//  SendyDynamic
+//
+//  Created by XuYao on 2025/12/6.
+//
+
+import Foundation
+import SwiftUI
+
+// 定义 TextWithEmotions 结构体
+struct TextWithEmotions: Codable {
+    var text: String
+    var emotions: [String] = []
+}
+
+// 定义 CommentContent 结构体
+struct CommentContent: Codable {
+    var text: String
+    var emotions: [String] = []
+    var reply_to: TextWithEmotions?
+}
+
+// 定义 SingleComment 结构体
+struct SingleComment: Codable, Identifiable {
+    var id: UUID = UUID()
+    var type: String
+    var tid: Int
+    var uin: String
+    var nick: TextWithEmotions
+    var avatar: String
+    var content: CommentContent
+    var time: String
+    var replies: [SingleComment]? = []
+    
+    enum CodingKeys: String, CodingKey {
+           case type, tid, uin, nick, avatar, content, time, replies
+       }
+}
+
+// 定义 DynamicInfo 结构体
+struct DynamicInfo: Codable, Identifiable {
+    var id = UUID()
+    var dateTime: String
+    var textContent: String?
+    var textContentEmojis: [String]?
+    var imgList: [String]?
+    var isVideo: Bool? = false
+    var phoneInfo: String?
+    var visitorNum: String?
+    var likedUser: String?
+    var comments: [SingleComment]?
+    
+    enum CodingKeys: String, CodingKey {
+           case dateTime, textContent, textContentEmojis, imgList, isVideo, phoneInfo, visitorNum, likedUser, comments
+       }
+}
+
+// 定义 DynamicInfo 数组
+struct InfoList: Codable {
+    var info: [DynamicInfo]
+}
+
+class DynamicPostData: ObservableObject {
+    
+    @Published var infoList: [DynamicInfo] = []
+    private var hasFetchedAttachInfo: Bool = false
+    
+    func loadJson() {
+        guard let fileUrl = Bundle.main.url(forResource: "dynamicInfo", withExtension: "json") else {
+            print("dynamicInfo.json file not found")
+            return
+        }
+        
+        do {
+            let data = try Data(contentsOf: fileUrl)
+            let decodedData = try JSONDecoder().decode(InfoList.self, from: data)
+            DispatchQueue.main.async {
+                self.infoList = decodedData.info
+            }
+        } catch {
+            print("加载 JSON 时发生错误: \(error)")
+        }
+    }
+    
+    func loadAttachInfo() async {
+        guard !hasFetchedAttachInfo else { return }
+        hasFetchedAttachInfo = true
+        
+        guard let attachInfoUrl = URL(string: "http://192.168.2.141:8848/Dynamic/AttachInfo.json") else {
+            print("Invalid URL")
+            return
+        }
+        do {
+            let (data, _) = try await URLSession.shared.data(from: attachInfoUrl)
+            let attach = try JSONDecoder().decode(InfoList.self, from: data)
+            
+            await mergeAttachInfo(attach.info)
+            
+        } catch {
+            print("加载 JSON 时发生错误: \(error)")
+        }
+    }
+    
+    func loadAnotherUserInfo(index: Int) async {
+        switch index {
+        case 0:
+            await updateInfo([])
+            loadJson()
+            await loadAttachInfo()
+            
+        case 1:
+            // print("LoadAnotherUserInfo")
+            guard let yaoInfoUrl = URL(string: "http://192.168.2.141:8848/Dynamic/Yao/dynamicInfoYao.json") else {
+                print("Invalid URL")
+                return
+            }
+            do {
+                let (data, _) = try await URLSession.shared.data(from: yaoInfoUrl)
+                let yaoInfo = try JSONDecoder().decode(InfoList.self, from: data)
+                await updateInfo(yaoInfo.info)
+            } catch {
+                print("加载 Yao DynamicInfo JSON 时发生错误: \(error)")
+                return
+            }
+        default:
+            print("No this user")
+        }
+    }
+    
+    @MainActor
+    private func mergeAttachInfo(_ newInfo: [DynamicInfo]) {
+        var merged = infoList + newInfo
+        
+        merged.sort {
+            $0.parsedDate ?? .distantPast > $1.parsedDate ?? .distantPast
+        }
+        
+        self.infoList = merged
+    }
+    
+    @MainActor
+    private func updateInfo(_ newInfo: [DynamicInfo]) {
+        self.infoList = newInfo
+    }
+}
+
+struct DynamicPostItem: View {
+    var id: UUID
+    var userNick: String
+    var userAvatar: String
+    var postTime: String
+    var content: String
+    var emojis: [String]
+    var imgList: [String]
+    var phoneInfo: String
+    var likeUser: String
+    var comments: [SingleComment]
+    
+    var body: some View {
+        CardView {
+            VStack(alignment: .leading) {
+                HStack {
+                    Image(uiImage: UIImage(imageLiteralResourceName: userAvatar))
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: 48, height: 48)
+                        .clipShape(Circle())
+                    VStack(alignment: .leading) {
+                        Text(userNick)
+                            .font(.headline)
+                            .foregroundColor(Color.gray)
+                        Text(postTime)
+                            .font(.subheadline)
+                            .foregroundColor(Color.gray)
+                    }
+                }
+                .padding(.bottom, 8)
+                
+                TextWithEmojis(content: content, emojis: emojis)
+                    .padding(.bottom, 12)
+                
+                if !imgList.isEmpty {
+                    ImageBox(imgList: imgList)
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .padding()
+                }
+                Text(phoneInfo)
+                    .font(.footnote)
+                    .foregroundColor(Color.gray)
+                    .padding(.leading, 10)
+                    .padding(.bottom, 5)
+                
+                VStack {
+                    Divider()
+                        .frame(height: 1)
+                        .background(Color(UIColor.rgb(31, 31, 31)))
+                    
+                    Spacer().frame(height: 3)
+                }
+                .padding(.horizontal, UIScreen.main.bounds.width * 0.025)
+                
+                Text(likeUser)
+                    .padding(.top, 5)
+                    .font(.system(size: 12))
+                    .foregroundColor(Color(UIColor.rgb(102, 153, 204)))
+                
+                // Comment List
+                VStack(alignment: .leading, spacing: 10) {
+                    ForEach(comments) { comment in
+                        CommentView(comment: comment)
+                        Divider().background(Color.gray.opacity(0.3))
+                    }
+                }
+            }
+            .padding(12)
+        }
+        .cornerRadius(12)
+    }
+}
+
+struct CardView<Content: View>: View {
+    var content: () -> Content
+    
+    var body: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color(UIColor.darkGray))
+            content()
+        }
+        .padding(.all, 10)
+    }
+}
+
+/// 处理文本和表情的显示
+struct TextWithEmojis: View {
+    var content: String
+    var emojis: [String]
+    var fontSize: CGFloat = 14
+    var emojiSize: CGFloat = 24
+    
+    var body: some View {
+        HStack(spacing: 0) {
+            Text(content)
+                .font(.system(size: fontSize))
+                .foregroundColor(Color.gray)
+            
+            ForEach(Array(emojis.enumerated()), id: \.offset) { index, emoji in
+                Image(uiImage: UIImage(imageLiteralResourceName: emoji))
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: emojiSize, height: emojiSize)
+            }
+        }
+    }
+}
+
+enum ImageSource {
+    case network(URL)
+    case local(String)
+
+    init(fileName: String) {
+        if fileName.contains("apsc"),
+           let url = URL(string: "http://192.168.2.141:8848/Dynamic/\(fileName).jpg") {
+            self = .network(url)
+        } else if fileName.contains("photos/"),
+                  let url = URL(string: "http://192.168.2.141:8848/Dynamic/Yao/\(fileName)") {
+            self = .network(url)
+        } else {
+            self = .local(fileName)
+        }
+    }
+}
+
+
+/// Build ImageBox
+struct ImageBox: View {
+    var imgList: [String] // 图片列表
+    var body: some View {
+        // 根据图片数量动态调整每行显示的图片数
+        let crossAxisCount: Int
+        let size: CGFloat
+        switch imgList.count {
+        case 4:
+            crossAxisCount = 2; size = 207
+
+        case 5...:
+            crossAxisCount = 3; size = 138.75
+
+        case 1:
+            crossAxisCount = 1; size = 345
+
+        case 2:
+            crossAxisCount = 1; size = 207
+
+        default:    // 0 或 3
+            crossAxisCount = 1; size = 138.75
+        }
+
+        // 使用 LazyVGrid 来创建网格布局
+        let rows = Array(repeating: GridItem(.fixed(size), spacing: 8), count: crossAxisCount)
+        return ScrollView {
+            LazyHGrid(rows: rows, spacing: 8) {
+                ForEach(imgList, id: \.self) { fileName in
+                    // 显示每张图片
+                    let source = ImageSource(fileName: fileName)
+                    Group {
+                        switch source {
+                        case .network(let url):
+                            AsyncImage(url: url) { image in
+                                image
+                                    .resizable()
+                                    .scaledToFill()
+                            } placeholder: {
+                                ProgressView()
+                            }
+                        case .local(let name):
+                            Image(uiImage: UIImage(imageLiteralResourceName: name))
+                                .resizable()
+                                .scaledToFill()
+                        }
+                    }
+                    .frame(width: size, height: size)
+                    .clipped()
+                    .cornerRadius(6)
+                }
+            }
+            .padding(8)
+        }
+    }
+}
+
+struct CommentView: View {
+    var comment: SingleComment
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            
+            HStack(alignment: .top, spacing: 10) {
+                Image(uiImage: UIImage(imageLiteralResourceName: comment.avatar))
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 30, height: 30)
+                    .clipShape(Circle())
+                    .overlay(Circle().stroke(Color.gray, lineWidth: 1))
+                
+                VStack(alignment: .leading, spacing: 3) {
+                    
+                    HStack() {
+                        Text(comment.nick.text + ": ")
+                            .font(.subheadline)
+                            .foregroundColor(.white)
+                        
+                        TextWithEmojis(content: comment.content.text, emojis: comment.content.emotions)
+                    }
+                    
+                    Text(comment.time)
+                        .font(.caption)
+                        .foregroundColor(.gray)
+                }
+                
+            }
+            if comment.replies != nil {
+                let repliesChian = comment.buildReplyChain()
+                ForEach(repliesChian) { item in
+                    ReplyView(
+                        reply: item.reply,
+                        parentNick: item.parentNick
+                    )
+                }
+            }
+        }
+        .padding(.vertical, 8)
+    }
+}
+
+
+struct ReplyView: View {
+    var reply: SingleComment
+    var parentNick: String
+    
+    var body: some View {
+        HStack(alignment: .top, spacing: 10) {
+            // 头像
+            Image(uiImage: UIImage(imageLiteralResourceName: reply.avatar))
+                .resizable()
+                .scaledToFill()
+                .frame(width: 30, height: 30)
+                .clipShape(Circle())
+                .overlay(Circle().stroke(Color.gray, lineWidth: 1))
+            
+            VStack(alignment: .leading, spacing: 3) {
+                
+                HStack() {
+                    // 回复昵称和内容
+                    Text("\(reply.nick.text) 回复 \(parentNick):")
+                        .font(.subheadline)
+                        .foregroundColor(.white)
+                    
+                    // 回复文本和表情
+                    TextWithEmojis(content: reply.content.text, emojis: reply.content.emotions)
+                }
+                
+                // 回复时间
+                Text(reply.time)
+                    .font(.caption)
+                    .foregroundColor(.gray)
+            }
+        }
+        .padding(.leading, 16)
+        .padding(.vertical, 4)
+    }
+}
+
+extension UIColor {
+    // 用于扩展UIColor，支持RGB设置
+    static func rgb(_ red: CGFloat, _ green: CGFloat, _ blue: CGFloat) -> UIColor {
+        return UIColor(red: red / 255.0, green: green / 255.0, blue: blue / 255.0, alpha: 1)
+    }
+}
+
+extension DynamicInfo {
+    
+    private var currentYear: Int { 2025 }
+    
+    private var cleanedDateTime: String {
+        let prefixes = ["编辑于"]
+        var result = dateTime
+        
+        for p in prefixes {
+            result = result.replacingOccurrences(of: p, with: "")
+        }
+        return result
+    }
+    
+    var parsedYear: Int {
+        
+        let cleanedTime = cleanedDateTime
+        
+        if cleanedTime.contains("年") {
+            let parts = cleanedTime.split(separator: "年", maxSplits: 1)
+            return Int(parts[0]) ?? currentYear
+        } else {
+            return currentYear // 2023
+        }
+    }
+    
+    var parsedMonth: Int {
+        
+        let full = dateTime.replacingOccurrences(of: " ", with: "")
+        
+        // 修复提取月份部分
+        let monthPattern = "\\d{1,2}月" // 正则匹配1或2位的月份数字加上"月"
+        if let range = full.range(of: monthPattern, options: .regularExpression) {
+            let monthSubstring = full[range]
+            let month = monthSubstring.replacingOccurrences(of: "月", with: "")
+            return Int(month) ?? 1 // 如果提取失败则返回 1 月
+        }
+        return 1 // 默认返回 1 月
+    }
+    
+    // MARK: - 👇 提取日
+    private var parsedDay: Int {
+        let full = cleanedDateTime.replacingOccurrences(of: " ", with: "")
+        let dayPattern = "\\d{1,2}日"
+            
+        if let range = full.range(of: dayPattern, options: .regularExpression) {
+            let daySub = full[range]
+            return Int(daySub.replacingOccurrences(of: "日", with: "")) ?? 1
+        }
+        return 1
+    }
+
+    // MARK: - 👇 提取时间（支持 “14:33”, “14:33:58”, 也可能完全没有时间）
+    private var parsedTime: (hour: Int, minute: Int, second: Int) {
+        let full = cleanedDateTime
+            
+        // 正则匹配 H:mm 或 HH:mm 或 HH:mm:ss
+        let timePattern = "\\d{1,2}:\\d{1,2}(:\\d{1,2})?"
+        if let range = full.range(of: timePattern, options: .regularExpression) {
+            let timeString = String(full[range])
+            let parts = timeString.split(separator: ":")
+            
+            let h = Int(parts[0]) ?? 0
+            let m = parts.count > 1 ? (Int(parts[1]) ?? 0) : 0
+            let s = parts.count > 2 ? (Int(parts[2]) ?? 0) : 0
+            
+            return (h, m, s)
+        }
+            return (0, 0, 0) // 没时间就返回 0 点
+        }
+    
+    var parsedDate: Date? {
+        var comps = DateComponents()
+        comps.year = parsedYear
+        comps.month = parsedMonth
+        comps.day = parsedDay
+        comps.hour = parsedTime.hour
+        comps.minute = parsedTime.minute
+        
+        return Calendar.current.date(from: comps)
+    }
+}
+
+struct ReplyWithParent: Identifiable {
+    let reply: SingleComment
+    let parentNick: String
+    
+    var id: UUID { reply.id }
+}
+
+extension SingleComment {
+
+    /// 构建带 parentNick 的回复列表
+    func buildReplyChain() -> [ReplyWithParent] {
+        guard let replies = self.replies else { return [] }
+        
+        var result: [ReplyWithParent] = []
+        var previousReplyNick: String? = nil
+        
+        for (index, reply) in replies.enumerated() {
+            let parentNick = (index == 0)
+                ? self.nick.text                     // 第一条 → 回复楼主
+                : (previousReplyNick ?? self.nick.text)
+
+            // 构建新对象
+            result.append(
+                ReplyWithParent(reply: reply, parentNick: parentNick)
+            )
+
+            previousReplyNick = reply.nick.text       // 更新上一条 nick
+        }
+        
+        return result
+    }
+}
+
