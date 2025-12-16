@@ -83,11 +83,11 @@ class DynamicPostData: ObservableObject {
         }
     }
     
-    func loadAttachInfo() async {
+    func loadAttachInfo(apiUrl: String) async {
         guard !hasFetchedAttachInfo else { return }
         hasFetchedAttachInfo = true
         
-        guard let attachInfoUrl = URL(string: "http://192.168.2.141:8848/Dynamic/AttachInfo.json") else {
+        guard let attachInfoUrl = URL(string: "\(apiUrl)AttachInfo.json") else {
             print("Invalid URL")
             return
         }
@@ -102,16 +102,15 @@ class DynamicPostData: ObservableObject {
         }
     }
     
-    func loadAnotherUserInfo(index: Int) async {
+    func loadAnotherUserInfo(index: Int, apiUrl:String) async {
         switch index {
         case 0:
-            await updateInfo([])
             loadJson()
-            await loadAttachInfo()
+            await loadAttachInfo(apiUrl: apiUrl)
             
         case 1:
             // print("LoadAnotherUserInfo")
-            guard let yaoInfoUrl = URL(string: "http://192.168.2.141:8848/Dynamic/Yao/dynamicInfoYao.json") else {
+            guard let yaoInfoUrl = URL(string: "\(apiUrl)/Yao/dynamicInfoYao.json") else {
                 print("Invalid URL")
                 return
             }
@@ -259,12 +258,12 @@ enum ImageSource {
     case network(URL)
     case local(String)
 
-    init(fileName: String) {
+    init(fileName: String, dynamicAPI: String) {
         if fileName.contains("apsc"),
-           let url = URL(string: "http://192.168.2.141:8848/Dynamic/\(fileName).jpg") {
+           let url = URL(string: "\(dynamicAPI+fileName).jpg") {
             self = .network(url)
         } else if fileName.contains("photos/"),
-                  let url = URL(string: "http://192.168.2.141:8848/Dynamic/Yao/\(fileName)") {
+                  let url = URL(string: "\(dynamicAPI)Yao/\(fileName)") {
             self = .network(url)
         } else {
             self = .local(fileName)
@@ -275,23 +274,25 @@ enum ImageSource {
 
 /// Build ImageBox
 struct ImageBox: View {
+    @EnvironmentObject var appState: AppState
     var imgList: [String] // 图片列表
     var body: some View {
         // 根据图片数量动态调整每行显示的图片数
         let crossAxisCount: Int
         let size: CGFloat
         switch imgList.count {
-        case 4:
-            crossAxisCount = 2; size = 207
-
-        case 5...:
-            crossAxisCount = 3; size = 138.75
-
         case 1:
             crossAxisCount = 1; size = 345
-
         case 2:
             crossAxisCount = 1; size = 207
+        case 4:
+            crossAxisCount = 2; size = 207
+            
+        // Fix layout bug when imgList.count == 5
+        case 5...6:
+            crossAxisCount = 2; size = 138.75
+        case 7...:
+            crossAxisCount = 3; size = 138.75
 
         default:    // 0 或 3
             crossAxisCount = 1; size = 138.75
@@ -303,7 +304,7 @@ struct ImageBox: View {
             LazyHGrid(rows: rows, spacing: 8) {
                 ForEach(imgList, id: \.self) { fileName in
                     // 显示每张图片
-                    let source = ImageSource(fileName: fileName)
+                    let source = ImageSource(fileName: fileName, dynamicAPI: appState.dynamicAPI)
                     Group {
                         switch source {
                         case .network(let url):

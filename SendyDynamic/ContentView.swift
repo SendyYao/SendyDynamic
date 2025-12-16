@@ -123,6 +123,7 @@ enum CurrentUser {
 
 struct ContentView: View {
     
+    @EnvironmentObject var appState: AppState
     @StateObject private var postData = DynamicPostData()
     @State private var scrollTarget: UUID?
     @State private var userIndex: Int = 0
@@ -137,7 +138,7 @@ struct ContentView: View {
                     scrollTarget = id
                 },
                 onSwitchedIndex: { index in
-                    print("Taped index: \(index); Ready to switch")
+                    print("Taped index: \(index); Ready to switch, now dynamicAPI: \(appState.dynamicAPI)")
                     currentUser = index == 0 ? .yi : .yao
                     userIndex = index
                 }
@@ -171,8 +172,8 @@ struct ContentView: View {
                     }
                     .padding()
                 }
-                .onChange(of: scrollTarget) { newID in
-                    guard let target = newID else {return}
+                .onChange(of: scrollTarget) {
+                    guard let target = scrollTarget else {return}
                     // print("ScrollViewReader 收到 scrollTarget: \(target)")
                     
                     DispatchQueue.main.async {
@@ -181,25 +182,25 @@ struct ContentView: View {
                         }
                     }
                 }
-                .onChange(of: userIndex) { newUserIndex in
+                .onChange(of: userIndex) {
                     
                     DispatchQueue.main.async {
                         proxy.scrollTo("top", anchor: .top)
                     }
                     
                     Task {
-                        await postData.loadAnotherUserInfo(index: userIndex)
+                        await postData.loadAnotherUserInfo(index: userIndex, apiUrl: appState.dynamicAPI)
                     }
                 }
                 .onAppear {
                     postData.loadJson()
+                }
+                .task(id: appState.apiReady) {
+                    guard appState.apiReady else { return }
+                    print("appState.dynamicAPI:", appState.dynamicAPI)
                     
-                    // Wait the first frame render complete
-                    DispatchQueue.main.async {
-                        Task {
-                            await postData.loadAttachInfo()
-                        }
-                    }
+                    // 调用 postData.loadAttachInfo，确保在 dynamicAPI 更新后执行
+                    await postData.loadAttachInfo(apiUrl: appState.dynamicAPI)
                 }
             }
             .navigationTitle("动态列表")

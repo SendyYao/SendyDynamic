@@ -15,7 +15,7 @@ struct User {
 
 struct SidebarSwitcher: View {
     
-    @State private var isExpanded: Bool = true   // 默认展开
+    @State private var isExpanded: Bool = false   // 默认折叠
     @State private var selectedIndex: Int = 0   // 默认高亮第一个
     
     let onSwitched: (Int) -> Void
