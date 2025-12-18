@@ -47,12 +47,33 @@ SendyDynamic 是一个面向 **iOS / iPadOS** 的 Swift 应用，用于 **查看
 
 ---
 
+## 📱 Screenshot
+
+<div align="center">
+  <div style="
+    display: inline-flex;
+    margin: 25px 0;
+    flex-wrap: wrap;
+    justify-content: center;
+  ">
+    <img 
+      src="https://github.com/user-attachments/assets/3b4241c4-fa2f-480b-8562-192e7f42d11c" 
+      alt="Screenshot" 
+      width="540"
+      height="405"
+      style="border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);"
+    >
+  </div>
+</div>
+ 
+---
+
 ## 🚀 快速开始
 
 1. 克隆仓库
 
    ```bash
-   git clone https://github.com/yourname/SendyDynamic.git
+   git clone https://github.com/SendyYao/SendyDynamic.git
    ```
 
 2. 使用 Xcode 打开项目
