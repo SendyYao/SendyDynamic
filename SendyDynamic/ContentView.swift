@@ -128,6 +128,7 @@ struct ContentView: View {
     @State private var scrollTarget: UUID?
     @State private var userIndex: Int = 0
     @State private var currentUser: CurrentUser = .yi
+    @State private var hasLoadedData = false
     
     var body: some View {
         NavigationView {
@@ -193,7 +194,10 @@ struct ContentView: View {
                     }
                 }
                 .onAppear {
-                    postData.loadJson()
+                    if !hasLoadedData {
+                        postData.loadJson()
+                        hasLoadedData = true
+                    }
                 }
                 .task(id: appState.apiReady) {
                     guard appState.apiReady else { return }

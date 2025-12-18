@@ -271,11 +271,14 @@ enum ImageSource {
     }
 }
 
-
 /// Build ImageBox
 struct ImageBox: View {
     @EnvironmentObject var appState: AppState
     var imgList: [String] // 图片列表
+    
+    @State private var loadedImages: Set<String> = []
+    @StateObject private var imageLoader = ImageLoader()
+    
     var body: some View {
         // 根据图片数量动态调整每行显示的图片数
         let crossAxisCount: Int
@@ -308,22 +311,40 @@ struct ImageBox: View {
                     Group {
                         switch source {
                         case .network(let url):
-                            AsyncImage(url: url) { image in
-                                image
+                            if let cachedImage = ImageCache.shared.getImage(for: url) {
+                                Image(uiImage: cachedImage)
                                     .resizable()
                                     .scaledToFill()
-                            } placeholder: {
-                                ProgressView()
+                                    .frame(width: size, height: size)
+                                    .cornerRadius(6)
+                            } else {
+                                AsyncImage(url: url) { image in
+                                    image
+                                        .resizable()
+                                        .scaledToFill()
+                                        .onAppear {
+                                            imageLoader.loadImage(url: url) { image in
+                                                if let image = image {
+                                                    ImageCache.shared.setImage(image, for: url)
+                                                }
+                                            }
+                                        }
+                                } placeholder: {
+                                    ProgressView()
+                                }
+                                .frame(width: size, height: size)
+                                .clipped()
+                                .cornerRadius(6)
                             }
                         case .local(let name):
                             Image(uiImage: UIImage(imageLiteralResourceName: name))
                                 .resizable()
                                 .scaledToFill()
+                                .frame(width: size, height: size)
+                                .clipped()
+                                .cornerRadius(6)
                         }
                     }
-                    .frame(width: size, height: size)
-                    .clipped()
-                    .cornerRadius(6)
                 }
             }
             .padding(8)
