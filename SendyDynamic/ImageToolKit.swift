@@ -8,21 +8,54 @@
 import Foundation
 import UIKit
 
-class ImageLoader: ObservableObject {
-    private let maxConcurrentRequestes = 10
-    private var currentRequests = 0
+final class ImageLoaderOP {
+    
+    static let shared = ImageLoaderOP()
+    
+    private let queue = DispatchQueue(label: "image.loader.queue")
+    private let maxConcurrent = 4
+    
+    private var running = 0
+    private var pending: [URL] = []
+    
+    private var inFlight: [URL: [(UIImage?) -> Void]] = [:]
+    
+    private let session: URLSession = {
+        let config = URLSessionConfiguration.default
+        config.httpMaximumConnectionsPerHost = 4
+        config.waitsForConnectivity = false
+        return URLSession(configuration: config)
+    }()
     
     func loadImage(url: URL, completion: @escaping (UIImage?) -> Void) {
-        guard currentRequests < maxConcurrentRequestes else { return }
-        
-        currentRequests += 1
-        URLSession.shared.dataTask(with: url) { data, response, error in
-            defer { self.currentRequests -= 1 }
-            guard let data = data, let imgae = UIImage(data: data) else {
-                completion(nil)
+        queue.async {
+            // Merge request
+            if self.inFlight[url] != nil {
+                self.inFlight[url]?.append(completion)
                 return
             }
-            completion(imgae)
+            
+            self.inFlight[url] = [completion]
+            self.pending.append(url)
+            self.shedule()
+        }
+    }
+    
+    private func shedule() {
+        guard running < maxConcurrent, !pending.isEmpty else { return }
+        
+        let url = pending.removeFirst()
+        running += 1
+        
+        session.dataTask(with: url) { data, _, _ in
+            let image = data.flatMap(UIImage.init)
+            
+            self.queue.async {
+                let callbacks = self.inFlight.removeValue(forKey: url) ?? []
+                self.running -= 1
+                callbacks.forEach { $0(image) }
+                self.shedule()
+            }
         }.resume()
     }
 }

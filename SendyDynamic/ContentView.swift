@@ -74,17 +74,17 @@ struct ToolbarContentView: View {
             VStack(spacing: 5) {
                 Text("Yi's QQ Dynamic")
                     .font(.headline)
-                    .foregroundColor(.gray)
+                    .foregroundColor(Color("SidebarTitleText"))
                 
                 Text(hitokoto)
                     .font(.subheadline)
-                    .foregroundColor(.white.opacity(0.9))
+                    .foregroundColor(Color("SidebarSubtitleText"))
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 10)
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 8)
-            .background(Color(UIColor.rgb(38, 38, 38)))
+            .background(Color("RegularBackground"))
             .onAppear{
                 fetchHitokoto()
             }

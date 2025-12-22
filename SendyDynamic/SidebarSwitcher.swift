@@ -55,15 +55,15 @@ struct SidebarSwitcher: View {
                 }
                 .padding(.top, 8)
                 .frame(maxWidth: .infinity, alignment: .center)
-                .background(Color(UIColor.rgb(38, 38, 38)))
+                .background(Color("RegularBackground"))
             },
             label: {
                 Text("Switch User")
                     .font(.headline)
-                    .foregroundColor(Color.white)
+                    .foregroundColor(Color("ContrastTextForeground"))
             }
         )
         .padding()
-        .background(Color(UIColor.rgb(38, 38, 38)))
+        .background(Color("RegularBackground"))
     }
 }

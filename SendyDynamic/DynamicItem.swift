@@ -168,10 +168,10 @@ struct DynamicPostItem: View {
                     VStack(alignment: .leading) {
                         Text(userNick)
                             .font(.headline)
-                            .foregroundColor(Color.gray)
+                            .foregroundColor(Color("RegularTextForeground"))
                         Text(postTime)
                             .font(.subheadline)
-                            .foregroundColor(Color.gray)
+                            .foregroundColor(Color("RegularTextForeground"))
                     }
                 }
                 .padding(.bottom, 8)
@@ -186,7 +186,7 @@ struct DynamicPostItem: View {
                 }
                 Text(phoneInfo)
                     .font(.footnote)
-                    .foregroundColor(Color.gray)
+                    .foregroundColor(Color("RegularTextForeground"))
                     .padding(.leading, 10)
                     .padding(.bottom, 5)
                 
@@ -208,7 +208,7 @@ struct DynamicPostItem: View {
                 VStack(alignment: .leading, spacing: 10) {
                     ForEach(comments) { comment in
                         CommentView(comment: comment)
-                        Divider().background(Color.gray.opacity(0.3))
+                        Divider().background(Color("RegularTextForeground").opacity(0.3))
                     }
                 }
             }
@@ -224,7 +224,7 @@ struct CardView<Content: View>: View {
     var body: some View {
         ZStack {
             RoundedRectangle(cornerRadius: 12)
-                .fill(Color(UIColor.darkGray))
+                .fill(Color(.secondarySystemBackground))
             content()
         }
         .padding(.all, 10)
@@ -242,7 +242,7 @@ struct TextWithEmojis: View {
         HStack(spacing: 0) {
             Text(content)
                 .font(.system(size: fontSize))
-                .foregroundColor(Color.gray)
+                .foregroundColor(Color("RegularTextForeground"))
             
             ForEach(Array(emojis.enumerated()), id: \.offset) { index, emoji in
                 Image(uiImage: UIImage(imageLiteralResourceName: emoji))
@@ -271,13 +271,60 @@ enum ImageSource {
     }
 }
 
+struct NetworkImageView: View {
+    
+    let url: URL
+    let size: CGFloat
+    
+    @State private var image: UIImage?
+    @State private var isLoading = false
+    
+    var body: some View {
+        Group {
+            if let image = image {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFill()
+            } else {
+                ProgressView()
+                    .onAppear {
+                        loadIfNeeded()
+                    }
+            }
+        }
+        .frame(width: size, height: size)
+        .clipped()
+        .cornerRadius(6)
+    }
+    
+    private func loadIfNeeded() {
+        guard !isLoading else { return }
+        
+        if let cachedImage = ImageCache.shared.getImage(for: url) {
+            image = cachedImage
+            return
+        }
+        
+        isLoading = true
+        ImageLoaderOP.shared.loadImage(url: url) { result in
+            DispatchQueue.main.async {
+                self.isLoading = false
+                if let result = result {
+                    ImageCache.shared.setImage(result, for: url)
+                    self.image = result
+                }
+            }
+        }
+    }
+}
+
 /// Build ImageBox
 struct ImageBox: View {
     @EnvironmentObject var appState: AppState
     var imgList: [String] // 图片列表
     
     @State private var loadedImages: Set<String> = []
-    @StateObject private var imageLoader = ImageLoader()
+    private let imageLoader = ImageLoaderOP.shared
     
     var body: some View {
         // 根据图片数量动态调整每行显示的图片数
@@ -311,31 +358,10 @@ struct ImageBox: View {
                     Group {
                         switch source {
                         case .network(let url):
-                            if let cachedImage = ImageCache.shared.getImage(for: url) {
-                                Image(uiImage: cachedImage)
-                                    .resizable()
-                                    .scaledToFill()
-                                    .frame(width: size, height: size)
-                                    .cornerRadius(6)
-                            } else {
-                                AsyncImage(url: url) { image in
-                                    image
-                                        .resizable()
-                                        .scaledToFill()
-                                        .onAppear {
-                                            imageLoader.loadImage(url: url) { image in
-                                                if let image = image {
-                                                    ImageCache.shared.setImage(image, for: url)
-                                                }
-                                            }
-                                        }
-                                } placeholder: {
-                                    ProgressView()
-                                }
-                                .frame(width: size, height: size)
-                                .clipped()
-                                .cornerRadius(6)
-                            }
+                            NetworkImageView(
+                                url: url,
+                                size: size
+                            )
                         case .local(let name):
                             Image(uiImage: UIImage(imageLiteralResourceName: name))
                                 .resizable()
@@ -363,21 +389,21 @@ struct CommentView: View {
                     .scaledToFill()
                     .frame(width: 30, height: 30)
                     .clipShape(Circle())
-                    .overlay(Circle().stroke(Color.gray, lineWidth: 1))
+                    .overlay(Circle().stroke(Color("BorderColor"), lineWidth: 1))
                 
                 VStack(alignment: .leading, spacing: 3) {
                     
                     HStack() {
                         Text(comment.nick.text + ": ")
                             .font(.subheadline)
-                            .foregroundColor(.white)
+                            .foregroundColor(Color("ContrastTextForeground"))
                         
                         TextWithEmojis(content: comment.content.text, emojis: comment.content.emotions)
                     }
                     
                     Text(comment.time)
                         .font(.caption)
-                        .foregroundColor(.gray)
+                        .foregroundColor(Color("RegularTextForeground"))
                 }
                 
             }
@@ -408,7 +434,7 @@ struct ReplyView: View {
                 .scaledToFill()
                 .frame(width: 30, height: 30)
                 .clipShape(Circle())
-                .overlay(Circle().stroke(Color.gray, lineWidth: 1))
+                .overlay(Circle().stroke(Color("BorderColor"), lineWidth: 1))
             
             VStack(alignment: .leading, spacing: 3) {
                 
@@ -416,7 +442,7 @@ struct ReplyView: View {
                     // 回复昵称和内容
                     Text("\(reply.nick.text) 回复 \(parentNick):")
                         .font(.subheadline)
-                        .foregroundColor(.white)
+                        .foregroundColor(Color("ContrastTextForeground"))
                     
                     // 回复文本和表情
                     TextWithEmojis(content: reply.content.text, emojis: reply.content.emotions)
@@ -425,7 +451,7 @@ struct ReplyView: View {
                 // 回复时间
                 Text(reply.time)
                     .font(.caption)
-                    .foregroundColor(.gray)
+                    .foregroundColor(Color("RegularTextForeground"))
             }
         }
         .padding(.leading, 16)
