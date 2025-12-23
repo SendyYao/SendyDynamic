@@ -158,7 +158,7 @@ struct DynamicPostItem: View {
     
     var body: some View {
         CardView {
-            VStack(alignment: .leading) {
+            VStack(alignment: .leading, spacing: 8) {
                 HStack {
                     Image(uiImage: UIImage(imageLiteralResourceName: userAvatar))
                         .resizable()
@@ -212,22 +212,25 @@ struct DynamicPostItem: View {
                     }
                 }
             }
-            .padding(12)
+            .frame(maxWidth: 640)
+            .frame(maxWidth: .infinity)
+            .padding(.horizontal, 12)
         }
-        .cornerRadius(12)
     }
 }
 
 struct CardView<Content: View>: View {
-    var content: () -> Content
+    
+    @ViewBuilder var content: Content
     
     var body: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color(.secondarySystemBackground))
-            content()
-        }
-        .padding(.all, 10)
+        content
+            .padding(12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(Color(.secondarySystemBackground))
+            )
     }
 }
 
@@ -329,7 +332,7 @@ struct ImageBox: View {
     var body: some View {
         // 根据图片数量动态调整每行显示的图片数
         let crossAxisCount: Int
-        let size: CGFloat
+        var size: CGFloat
         switch imgList.count {
         case 1:
             crossAxisCount = 1; size = 345
@@ -346,6 +349,10 @@ struct ImageBox: View {
 
         default:    // 0 或 3
             crossAxisCount = 1; size = 138.75
+        }
+        
+        if appState.platform == .iPhone {
+            size = size / 1.35
         }
 
         // 使用 LazyVGrid 来创建网格布局
@@ -420,7 +427,6 @@ struct CommentView: View {
         .padding(.vertical, 8)
     }
 }
-
 
 struct ReplyView: View {
     var reply: SingleComment
@@ -581,4 +587,3 @@ extension SingleComment {
         return result
     }
 }
-

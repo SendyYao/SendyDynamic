@@ -10,6 +10,7 @@ import SwiftUI
 @MainActor
 class AppState: ObservableObject {
     
+    @Published var platform: Platform = .iPad
     @Published var dynamicAPI: String = ""
     @Published var apiReady = false
     
@@ -36,5 +37,10 @@ class AppState: ObservableObject {
         
         print("Dynamic API set to: \(dynamicAPI)")
         apiReady = true
+    }
+    
+    enum Platform {
+        case iPhone
+        case iPad
     }
 }

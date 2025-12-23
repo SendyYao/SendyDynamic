@@ -7,66 +7,13 @@
 
 import SwiftUI
 
-struct HitokotoResponse: Codable {
-    let code: Int
-    let data: HitokotoData
-    let msg: String
-}
-
-struct HitokotoData: Codable {
-    let hitokoto: String
-    let from: String
-}
-
 struct ToolbarContentView: View {
     
     @State private var hitokoto: String = "加载中…"
-    @State private var hasFetchedHitokoto: Bool = false
     
     let posts: [DynamicInfo]
     let onSelectPostID: (UUID) -> Void
     let onSwitchedIndex: (Int) -> Void
-    
-    // MARK: - 使用iTab API获取每日一言
-    func fetchHitokoto() {
-        guard !hasFetchedHitokoto else { return }
-        guard let apiUrl = URL(string: "https://itab-api.yaonas.space/yiyan/random") else {
-            print("Invalid URL")
-            return
-        }
-        
-        var request = URLRequest(url: apiUrl)
-        request.timeoutInterval = 30
-        
-        let session = URLSession(configuration: .default)
-        
-        session.dataTask(with: request) { data, response, error in
-            if let error = error {
-                print("请求错误: \(error.localizedDescription)")
-                return
-            }
-            
-            guard let data = data else {
-                print("No returned data")
-                return
-            }
-            
-            if let jsonString = String(data: data, encoding: .utf8) {
-                print("返回原始的JSON数据： \(jsonString)")
-            }
-            
-            do {
-                let json = try JSONDecoder().decode(HitokotoResponse.self, from: data)
-                DispatchQueue.main.async {
-                    self.hitokoto = json.data.hitokoto
-                    self.hasFetchedHitokoto = true
-                }
-            } catch {
-                print(apiUrl)
-                print("解析错误: \(error.localizedDescription)")
-            }
-        }.resume()
-    }
     
     var body: some View {
         VStack(spacing: 0) {
@@ -85,8 +32,8 @@ struct ToolbarContentView: View {
             .frame(maxWidth: .infinity)
             .padding(.vertical, 8)
             .background(Color("RegularBackground"))
-            .onAppear{
-                fetchHitokoto()
+            .task {
+                hitokoto = await AdditionalContent.shared.fetchHitokoto()
             }
             
             // MARK: Switch QQ Dynamic User
@@ -124,91 +71,31 @@ enum CurrentUser {
 struct ContentView: View {
     
     @EnvironmentObject var appState: AppState
-    @StateObject private var postData = DynamicPostData()
-    @State private var scrollTarget: UUID?
-    @State private var userIndex: Int = 0
-    @State private var currentUser: CurrentUser = .yi
-    @State private var hasLoadedData = false
+    @Environment(\.horizontalSizeClass) private var hSize
     
     var body: some View {
-        NavigationView {
-            ToolbarContentView(
-                posts: postData.infoList,
-                onSelectPostID: { id in
-                    // print("ContentView 收到 onSelect，设置 scrollTarget = \(id)")
-                    scrollTarget = id
-                },
-                onSwitchedIndex: { index in
-                    print("Taped index: \(index); Ready to switch, now dynamicAPI: \(appState.dynamicAPI)")
-                    currentUser = index == 0 ? .yi : .yao
-                    userIndex = index
-                }
-            )
-            // SplitView
-            ScrollViewReader { proxy in
-                ScrollView {
-                    // Top 锚点
-                    VStack {
-                        Color.clear
-                            .frame(height: 0)
-                            .id("top")
-                    }
-                    
-                    LazyVStack(alignment: .leading, spacing: 12) {
-                        ForEach(postData.infoList) { post in
-                            DynamicPostItem(
-                                id: post.id,
-                                userNick: currentUser.nick,
-                                userAvatar: currentUser.avatar,
-                                postTime: post.dateTime,
-                                content: post.textContent ?? "",
-                                emojis: post.textContentEmojis ?? [],
-                                imgList: post.imgList ?? [],
-                                phoneInfo: post.phoneInfo ?? "",
-                                likeUser: post.likedUser ?? "",
-                                comments: post.comments ?? []
-                            )
-                            .id(post.id)
-                        }
-                    }
-                    .padding()
-                }
-                .onChange(of: scrollTarget) {
-                    guard let target = scrollTarget else {return}
-                    // print("ScrollViewReader 收到 scrollTarget: \(target)")
-                    
-                    DispatchQueue.main.async {
-                        withAnimation(.spring(response: 0.15, dampingFraction: 0.55)) {
-                            proxy.scrollTo(target, anchor: .top)
-                        }
-                    }
-                }
-                .onChange(of: userIndex) {
-                    
-                    DispatchQueue.main.async {
-                        proxy.scrollTo("top", anchor: .top)
-                    }
-                    
-                    Task {
-                        await postData.loadAnotherUserInfo(index: userIndex, apiUrl: appState.dynamicAPI)
-                    }
-                }
-                .onAppear {
-                    if !hasLoadedData {
-                        postData.loadJson()
-                        hasLoadedData = true
-                    }
-                }
-                .task(id: appState.apiReady) {
-                    guard appState.apiReady else { return }
-                    print("appState.dynamicAPI:", appState.dynamicAPI)
-                    
-                    // 调用 postData.loadAttachInfo，确保在 dynamicAPI 更新后执行
-                    await postData.loadAttachInfo(apiUrl: appState.dynamicAPI)
-                }
+        Group {
+            if appState.platform == .iPad {
+                PadContentView()
+            } else {
+                PhoneContentView()
             }
-            .navigationTitle("动态列表")
         }
-        .navigationBarTitle("Yi's QQ Dynamic", displayMode: .inline)
+        .onAppear {
+            updatePlatform()
+        }
+        .onChange(of: hSize) {
+            updatePlatform()
+        }
+    }
+    
+    private func updatePlatform() {
+        if hSize == .regular {
+            appState.platform = .iPad
+            print("iPad Platform")
+        } else {
+            appState.platform = .iPhone
+            print("iPhone Platform")
+        }
     }
 }

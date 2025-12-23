@@ -55,9 +55,10 @@
 		20E703382EEC2D7C00E56640 /* Exceptions for "SendyDynamic" folder in "SendyDynamicTests" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
-				ImageToolKit.swift,
-				SendyUtils.swift,
-				SidebarSwitcher.swift,
+				Compontens/SidebarSwitcher.swift,
+				Utils/AdditionalContent.swift,
+				Utils/ImageToolKit.swift,
+				Utils/SendyUtils.swift,
 			);
 			target = 20401F182EE4130A00FADDB4 /* SendyDynamicTests */;
 		};
@@ -119,10 +120,10 @@
 			isa = PBXGroup;
 			children = (
 				2040241B2EE42DC100FADDB4 /* Assets */,
-				204019AA2EE3D24400FADDB4 /* SendyDynamic */,
 				204019C52EE3D24800FADDB4 /* SendyDynamicUITests */,
 				20401F1A2EE4130A00FADDB4 /* SendyDynamicTests */,
 				204019A92EE3D24400FADDB4 /* Products */,
+				204019AA2EE3D24400FADDB4 /* SendyDynamic */,
 			);
 			sourceTree = "<group>";
 		};
