@@ -84,9 +84,6 @@ struct ContentView: View {
         .onAppear {
             updatePlatform()
         }
-        .onChange(of: hSize) {
-            updatePlatform()
-        }
     }
     
     private func updatePlatform() {

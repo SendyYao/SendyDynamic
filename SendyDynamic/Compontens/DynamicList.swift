@@ -74,7 +74,7 @@ struct DynamicList: View {
             }
             .task(id: state.apiReady) {
                 guard state.apiReady else { return }
-                print("appState.dynamicAPI:", state.dynamicAPI)
+                // print("appState.dynamicAPI:", state.dynamicAPI)
                 
                 // 调用 postData.loadAttachInfo，确保在 dynamicAPI 更新后执行
                 await data.loadAttachInfo(apiUrl: state.dynamicAPI)
