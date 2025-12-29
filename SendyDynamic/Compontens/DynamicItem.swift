@@ -81,6 +81,7 @@ class DynamicPostData: ObservableObject {
         } catch {
             print("加载 JSON 时发生错误: \(error)")
         }
+        print("Loaded JSON")
     }
     
     func loadAttachInfo(apiUrl: String) async {
@@ -176,7 +177,7 @@ struct DynamicPostItem: View {
                 }
                 .padding(.bottom, 8)
                 
-                TextWithEmojis(content: content, emojis: emojis)
+                TextWithEmojis(content: content, emojis: emojis, needInteract: true)
                     .padding(.bottom, 12)
                 
                 if !imgList.isEmpty {
@@ -234,24 +235,266 @@ struct CardView<Content: View>: View {
     }
 }
 
+final class DeselectableTextView: UITextView, UIGestureRecognizerDelegate {
+    
+    var onLongPress: (() -> Void)?
+    private var didAddLongPress = false
+
+    override func didMoveToWindow() {
+        super.didMoveToWindow()
+        
+        guard !didAddLongPress else { return }
+        didAddLongPress = true
+        
+        let longPress = UILongPressGestureRecognizer(
+            target: self,
+            action: #selector(handleLongPress)
+        )
+        longPress.minimumPressDuration = 0.35
+        longPress.delegate = self
+        addGestureRecognizer(longPress)
+    }
+    
+    @objc private func handleLongPress(_ g: UILongPressGestureRecognizer) {
+        guard g.state == .began else { return }
+        onLongPress?()
+    }
+    
+    func gestureRecognizer(
+        _ gestureRecognizer: UIGestureRecognizer,
+        shouldRecognizeSimultaneouslyWith otherGestureRecongizer: UIGestureRecognizer
+    ) -> Bool {
+        true
+    }
+    
+    override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
+        let view = super.hitTest(point, with: event)
+        
+        // avoid cancel select when dragging
+        if isDragging || isTracking {
+            return view
+        }
+        
+        guard selectedRange.length > 0 else {
+            return view
+        }
+        
+        if let range = selectedTextRange,
+           let start = range.start as UITextPosition?,
+           let end = range.end as UITextPosition? {
+            let startRect = firstRect(for: textRange(from: start, to: start)!)
+            let endRect = firstRect(for: textRange(from: end, to: end)!)
+            
+            let selectionRect = startRect.union(endRect)
+            
+            if !selectionRect.contains(point) {
+                DispatchQueue.main.async {
+                    self.selectedRange = NSRange(location: NSNotFound, length: 0)
+                }
+            }
+        }
+        
+        return view
+    }
+}
+
+struct SelectableTextView: UIViewRepresentable {
+    
+    let attributedText: NSAttributedString
+    @Binding var dynamicHeight: CGFloat
+    let onLongPress: () -> Void
+    
+    func makeUIView(context: Context) -> UITextView {
+        let textView = context.coordinator.textView
+        
+        textView.isEditable = false
+        textView.isSelectable = true
+        textView.isScrollEnabled = false
+        
+        textView.backgroundColor = .clear
+        textView.textContainer.widthTracksTextView = true
+        textView.textContainerInset = .zero
+        textView.textContainer.lineFragmentPadding = 0
+        
+        textView.translatesAutoresizingMaskIntoConstraints = false
+        textView.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        textView.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        textView.textContainer.widthTracksTextView = true
+        
+        textView.dataDetectorTypes = []
+        textView.allowsEditingTextAttributes = false
+        
+        return textView
+    }
+    
+    func updateUIView(_ uiView: UITextView, context: Context) {
+        uiView.attributedText = attributedText
+        
+        DispatchQueue.main.async {
+            let size = uiView.sizeThatFits(
+                CGSize(width: uiView.bounds.width, height: .greatestFiniteMagnitude)
+            )
+            if dynamicHeight != size.height {
+                dynamicHeight = size.height
+            }
+        }
+    }
+    
+    func makeCoordinator() -> Coordinator {
+        Coordinator()
+    }
+    
+    final class Coordinator {
+        let textView = DeselectableTextView()
+    }
+}
+
 /// 处理文本和表情的显示
 struct TextWithEmojis: View {
     var content: String
     var emojis: [String]
     var fontSize: CGFloat = 14
     var emojiSize: CGFloat = 24
+    var needInteract: Bool = false
+    @State private var textHeight: CGFloat = .zero
+    @State private var isPressed = false
     
-    var body: some View {
+    private var nonInteractText: some View {
         HStack(spacing: 0) {
             Text(content)
                 .font(.system(size: fontSize))
                 .foregroundColor(Color("RegularTextForeground"))
             
-            ForEach(Array(emojis.enumerated()), id: \.offset) { index, emoji in
+            ForEach(Array(emojis.enumerated()), id: \.offset) { _, emoji in
                 Image(uiImage: UIImage(imageLiteralResourceName: emoji))
                     .resizable()
                     .scaledToFit()
                     .frame(width: emojiSize, height: emojiSize)
+            }
+        }
+    }
+    
+    private var pressEffect: some View {
+        RoundedRectangle(cornerRadius: 12)
+            .fill(Color.secondary.opacity(0.15))
+            .scaleEffect(isPressed ? 0.97 : 1)
+            .opacity(isPressed ? 1 : 0)
+            .animation(.spring(response: 0.25, dampingFraction: 0.8), value: isPressed)
+    }
+    
+    private func copyAll() {
+        let attr = buildAttributedText()
+        
+        UIPasteboard.general.string = attr.string
+    }
+    
+    private func shareAll() {
+        let attr = buildAttributedText()
+        
+        let vc = UIActivityViewController(
+            activityItems: [attr.string],
+            applicationActivities: nil
+        )
+        
+        guard let windowScene = UIApplication.shared.connectedScenes
+            .compactMap({ $0 as? UIWindowScene})
+            .first,
+              let rootVC = windowScene.keyWindow?.rootViewController else {
+            return
+        }
+        
+        // For iPad
+        if let popover = vc.popoverPresentationController {
+            popover.sourceView = rootVC.view
+            popover.sourceRect = CGRect(
+                x: rootVC.view.bounds.midX,
+                y: rootVC.view.bounds.midY,
+                width: 0,
+                height: 0
+            )
+            popover.permittedArrowDirections = []
+        }
+        
+        rootVC.present(vc, animated: true)
+    }
+    
+    @ViewBuilder
+    private var contextMenuContent: some View {
+        Button {
+            print("Copy all")
+            copyAll()
+        } label: {
+            Label("Copy all", systemImage: "doc.on.doc")
+        }
+        Button {
+            print("Share")
+            shareAll()
+        } label: {
+            Label("Share", systemImage: "square.and.arrow.up")
+        }
+    }
+    
+    func buildAttributedText() -> NSAttributedString {
+        
+        let paragraphStyle = NSMutableParagraphStyle()
+        paragraphStyle.lineBreakMode = .byWordWrapping
+        paragraphStyle.alignment = .left
+        
+        let result = NSMutableAttributedString(
+            string: content,
+            attributes: [
+                .font: UIFont.systemFont(ofSize: fontSize),
+                .foregroundColor: UIColor(Color("RegularTextForeground")),
+                .paragraphStyle: paragraphStyle
+            ]
+        )
+        
+        for emoji in emojis {
+            guard let image = UIImage(named: emoji) else { continue }
+            
+            let attachment = NSTextAttachment()
+            attachment.image = image
+            
+            attachment.bounds = CGRect(
+                x: 0,
+                y: (UIFont.systemFont(ofSize: fontSize).capHeight - emojiSize / 2),
+                width: emojiSize,
+                height: emojiSize
+            )
+            
+            let attr = NSAttributedString(attachment: attachment)
+            result.append(attr)
+        }
+        
+        return result
+    }
+    
+    var body: some View {
+        Group {
+            if needInteract {
+                let attributed = buildAttributedText()
+                ZStack {
+                    pressEffect
+                    SelectableTextView(
+                        attributedText: attributed,
+                        dynamicHeight: $textHeight,
+                        onLongPress: {
+                            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                            isPressed = true
+                                                    
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                                isPressed = false
+                            }
+                        }
+                    )
+                    .frame(height: textHeight)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .contextMenu {
+                    contextMenuContent
+                }
+            } else {
+                nonInteractText
             }
         }
     }
