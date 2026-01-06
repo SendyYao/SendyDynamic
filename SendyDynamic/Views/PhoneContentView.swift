@@ -10,6 +10,7 @@ import SwiftUI
 struct PhoneAppBar: View {
     
     @State private var hitokoto: String = "加载中… "
+    @State private var isSignleLineHitoko = true
     
     let onSidebarTap: () -> Void
     
@@ -30,8 +31,21 @@ struct PhoneAppBar: View {
                 Text(hitokoto)
                     .font(.subheadline)
                     .foregroundColor(Color("SidebarSubtitleText"))
-                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .multilineTextAlignment(isSignleLineHitoko ? .center : .leading)
                     .padding(.horizontal, 10)
+                    .background(
+                        GeometryReader { geo in
+                            Color.clear
+                                .onAppear {
+                                    let width = hitokoto
+                                        .size(withAttributes: [
+                                            .font: UIFont.preferredFont(forTextStyle: .subheadline)
+                                        ]).width
+                                    isSignleLineHitoko = width <= geo.size.width + 1
+                                }
+                        }
+                    )
             }
             .task {
                 hitokoto = await AdditionalContent.shared.fetchHitokoto()

@@ -14,6 +14,7 @@ struct ToolbarContentView: View {
     let posts: [DynamicInfo]
     let onSelectPostID: (UUID) -> Void
     let onSwitchedIndex: (Int) -> Void
+    @State private var isSignleLineHitoko = true
     
     var body: some View {
         VStack(spacing: 0) {
@@ -26,8 +27,21 @@ struct ToolbarContentView: View {
                 Text(hitokoto)
                     .font(.subheadline)
                     .foregroundColor(Color("SidebarSubtitleText"))
-                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .multilineTextAlignment(isSignleLineHitoko ? .center : .leading)
                     .padding(.horizontal, 10)
+                    .background(
+                        GeometryReader { geo in
+                            Color.clear
+                                .onAppear {
+                                    let width = hitokoto
+                                        .size(withAttributes: [
+                                            .font: UIFont.preferredFont(forTextStyle: .subheadline)
+                                        ]).width
+                                    isSignleLineHitoko = width <= geo.size.width + 1
+                                }
+                        }
+                    )
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 8)

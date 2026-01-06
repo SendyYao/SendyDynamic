@@ -156,6 +156,7 @@ struct DynamicPostItem: View {
     var phoneInfo: String
     var likeUser: String
     var comments: [SingleComment]
+    @State private var isTextInteracting = false
     
     var body: some View {
         CardView {
@@ -177,8 +178,8 @@ struct DynamicPostItem: View {
                 }
                 .padding(.bottom, 8)
                 
-                TextWithEmojis(content: content, emojis: emojis, needInteract: true)
-                    .padding(.bottom, 12)
+                TextWithEmojis(content: content, emojis: emojis, needInteract: true, isTextInteracting: $isTextInteracting)
+                    .padding(.bottom, 8)
                 
                 if !imgList.isEmpty {
                     ImageBox(imgList: imgList)
@@ -216,6 +217,7 @@ struct DynamicPostItem: View {
             .frame(maxWidth: 640)
             .frame(maxWidth: .infinity)
             .padding(.horizontal, 12)
+            .cardTapToDismissSelection(isTextInteracting: isTextInteracting)
         }
     }
 }
@@ -239,6 +241,30 @@ final class DeselectableTextView: UITextView, UIGestureRecognizerDelegate {
     
     var onLongPress: (() -> Void)?
     private var didAddLongPress = false
+    var onInteractionChanged: ((Bool) -> Void)?
+    
+    private(set) var isInteractingWithText = false {
+        didSet {
+            if oldValue != isInteractingWithText {
+                onInteractionChanged?(isInteractingWithText)
+            }
+        }
+    }
+    
+    override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
+        isInteractingWithText = true
+        super.touchesBegan(touches, with: event)
+    }
+
+    override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
+        isInteractingWithText = false
+        super.touchesEnded(touches, with: event)
+    }
+
+    override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) {
+        isInteractingWithText = false
+        super.touchesCancelled(touches, with: event)
+    }
 
     override func didMoveToWindow() {
         super.didMoveToWindow()
@@ -250,7 +276,7 @@ final class DeselectableTextView: UITextView, UIGestureRecognizerDelegate {
             target: self,
             action: #selector(handleLongPress)
         )
-        longPress.minimumPressDuration = 0.35
+        longPress.minimumPressDuration = 0.5
         longPress.delegate = self
         addGestureRecognizer(longPress)
     }
@@ -260,49 +286,20 @@ final class DeselectableTextView: UITextView, UIGestureRecognizerDelegate {
         onLongPress?()
     }
     
-    func gestureRecognizer(
-        _ gestureRecognizer: UIGestureRecognizer,
-        shouldRecognizeSimultaneouslyWith otherGestureRecongizer: UIGestureRecognizer
-    ) -> Bool {
-        true
+    override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
+        isInteractingWithText = true
+        super.touchesMoved(touches, with: event)
     }
-    
-    override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
-        let view = super.hitTest(point, with: event)
-        
-        // avoid cancel select when dragging
-        if isDragging || isTracking {
-            return view
-        }
-        
-        guard selectedRange.length > 0 else {
-            return view
-        }
-        
-        if let range = selectedTextRange,
-           let start = range.start as UITextPosition?,
-           let end = range.end as UITextPosition? {
-            let startRect = firstRect(for: textRange(from: start, to: start)!)
-            let endRect = firstRect(for: textRange(from: end, to: end)!)
-            
-            let selectionRect = startRect.union(endRect)
-            
-            if !selectionRect.contains(point) {
-                DispatchQueue.main.async {
-                    self.selectedRange = NSRange(location: NSNotFound, length: 0)
-                }
-            }
-        }
-        
-        return view
-    }
+
 }
 
 struct SelectableTextView: UIViewRepresentable {
     
     let attributedText: NSAttributedString
+    let width: CGFloat
     @Binding var dynamicHeight: CGFloat
     let onLongPress: () -> Void
+    var isInteractingWithText: Binding<Bool>
     
     func makeUIView(context: Context) -> UITextView {
         let textView = context.coordinator.textView
@@ -324,6 +321,12 @@ struct SelectableTextView: UIViewRepresentable {
         textView.dataDetectorTypes = []
         textView.allowsEditingTextAttributes = false
         
+        textView.onInteractionChanged = { interacting in
+            DispatchQueue.main.async {
+                self.isInteractingWithText.wrappedValue = interacting
+            }
+        }
+        
         return textView
     }
     
@@ -331,10 +334,13 @@ struct SelectableTextView: UIViewRepresentable {
         uiView.attributedText = attributedText
         
         DispatchQueue.main.async {
+            guard width > 0 else { return }
+            
             let size = uiView.sizeThatFits(
-                CGSize(width: uiView.bounds.width, height: .greatestFiniteMagnitude)
+                CGSize(width: width, height: .greatestFiniteMagnitude)
             )
-            if dynamicHeight != size.height {
+            
+            if abs(dynamicHeight - size.height) > 0.5 {
                 dynamicHeight = size.height
             }
         }
@@ -358,6 +364,7 @@ struct TextWithEmojis: View {
     var needInteract: Bool = false
     @State private var textHeight: CGFloat = .zero
     @State private var isPressed = false
+    var isTextInteracting: Binding<Bool>? = nil
     
     private var nonInteractText: some View {
         HStack(spacing: 0) {
@@ -473,23 +480,28 @@ struct TextWithEmojis: View {
         Group {
             if needInteract {
                 let attributed = buildAttributedText()
-                ZStack {
-                    pressEffect
-                    SelectableTextView(
-                        attributedText: attributed,
-                        dynamicHeight: $textHeight,
-                        onLongPress: {
-                            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-                            isPressed = true
-                                                    
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                                isPressed = false
-                            }
-                        }
-                    )
-                    .frame(height: textHeight)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                GeometryReader { geo in
+                    ZStack {
+                        pressEffect
+                        SelectableTextView(
+                            attributedText: attributed,
+                            width: geo.size.width,
+                            dynamicHeight: $textHeight,
+                            onLongPress: {
+                                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                                isPressed = true
+                                
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                                    isPressed = false
+                                }
+                            },
+                            isInteractingWithText: isTextInteracting ?? .constant(false)
+                        )
+                        .frame(height: textHeight)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    }
                 }
+                .frame(height: textHeight)
                 .contextMenu {
                     contextMenuContent
                 }
@@ -828,5 +840,23 @@ extension SingleComment {
         }
         
         return result
+    }
+}
+
+extension View {
+    func cardTapToDismissSelection(isTextInteracting: Bool) -> some View {
+        self.overlay(
+            Color.clear
+                .contentShape(Rectangle())
+                .allowsHitTesting(!isTextInteracting)
+                .onTapGesture {
+                    UIApplication.shared.sendAction(
+                        #selector(UIResponder.resignFirstResponder),
+                        to: nil,
+                        from: nil,
+                        for: nil
+                    )
+                }
+        )
     }
 }
