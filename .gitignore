@@ -1,9 +1,13 @@
-# macOS
+# macOS system files
 .DS_Store
 
 # Logs
 *.log
 
-# Resources
+# Xcode user-specific / workspace files
+xcuserdata/
+*.xcuserstate
+
+# Project resources to ignore
 SendyDynamic/Resources/photos/
 
