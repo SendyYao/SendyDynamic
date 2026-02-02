@@ -5,7 +5,6 @@
 //  Created by XuYao on 2025/12/6.
 //
 
-import Foundation
 import SwiftUI
 
 // 定义 TextWithEmotions 结构体
@@ -162,11 +161,13 @@ struct DynamicPostItem: View {
         CardView {
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
-                    Image(uiImage: UIImage(imageLiteralResourceName: userAvatar))
-                        .resizable()
-                        .scaledToFill()
-                        .frame(width: 48, height: 48)
-                        .clipShape(Circle())
+                    if let userAvatar = ImageLoaderOP.shared.loadLocalImage(named: userAvatar) {
+                        Image(uiImage: userAvatar)
+                            .resizable()
+                            .scaledToFill()
+                            .frame(width: 48, height: 48)
+                            .clipShape(Circle())
+                    }
                     VStack(alignment: .leading) {
                         Text(userNick)
                             .font(.headline)
@@ -178,8 +179,8 @@ struct DynamicPostItem: View {
                 }
                 .padding(.bottom, 8)
                 
-                TextWithEmojis(content: content, emojis: emojis, needInteract: true, isTextInteracting: $isTextInteracting)
-                    .padding(.bottom, 8)
+                TextWithEmojis(content: content, emojis: emojis)
+                    .padding(.bottom, 12)
                 
                 if !imgList.isEmpty {
                     ImageBox(imgList: imgList)
@@ -205,14 +206,6 @@ struct DynamicPostItem: View {
                     .padding(.top, 5)
                     .font(.system(size: 12))
                     .foregroundColor(Color(UIColor.rgb(102, 153, 204)))
-                
-                // Comment List
-                VStack(alignment: .leading, spacing: 10) {
-                    ForEach(comments) { comment in
-                        CommentView(comment: comment)
-                        Divider().background(Color("RegularTextForeground").opacity(0.3))
-                    }
-                }
             }
             .frame(maxWidth: 640)
             .frame(maxWidth: .infinity)
@@ -371,13 +364,6 @@ struct TextWithEmojis: View {
             Text(content)
                 .font(.system(size: fontSize))
                 .foregroundColor(Color("RegularTextForeground"))
-            
-            ForEach(Array(emojis.enumerated()), id: \.offset) { _, emoji in
-                Image(uiImage: UIImage(imageLiteralResourceName: emoji))
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: emojiSize, height: emojiSize)
-            }
         }
     }
     
@@ -625,12 +611,14 @@ struct ImageBox: View {
                                 size: size
                             )
                         case .local(let name):
-                            Image(uiImage: UIImage(imageLiteralResourceName: name))
-                                .resizable()
-                                .scaledToFill()
-                                .frame(width: size, height: size)
-                                .clipped()
-                                .cornerRadius(6)
+                            if let image = ImageLoaderOP.shared.loadLocalImage(named: name) {
+                                Image(uiImage: image)
+                                    .resizable()
+                                    .scaledToFill()
+                                    .frame(width: size, height: size)
+                                    .clipped()
+                                    .cornerRadius(6)
+                            }
                         }
                     }
                 }

@@ -4,5 +4,6 @@
 # Logs
 *.log
 
-# Assets
-Assets/photos/
+# Resources
+SendyDynamic/Resources/photos/
+

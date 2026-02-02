@@ -6,11 +6,6 @@
 	objectVersion = 77;
 	objects = {
 
-/* Begin PBXBuildFile section */
-		204024202EE42F0500FADDB4 /* dynamicInfo.json in Resources */ = {isa = PBXBuildFile; fileRef = 2040241F2EE42F0500FADDB4 /* dynamicInfo.json */; };
-		204024212EE42F0500FADDB4 /* dynamicInfo.json in Resources */ = {isa = PBXBuildFile; fileRef = 2040241F2EE42F0500FADDB4 /* dynamicInfo.json */; };
-/* End PBXBuildFile section */
-
 /* Begin PBXContainerItemProxy section */
 		20401F1D2EE4130A00FADDB4 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -24,34 +19,9 @@
 /* Begin PBXFileReference section */
 		204019A82EE3D24400FADDB4 /* SendyDynamic.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SendyDynamic.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		20401F192EE4130A00FADDB4 /* SendyDynamicTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SendyDynamicTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		2040241F2EE42F0500FADDB4 /* dynamicInfo.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = dynamicInfo.json; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		20CC23262EEFA7D100B92382 /* Exceptions for "dynamicYao" folder in "SendyDynamicTests" target */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				50802fm.gif,
-				avatar302,
-				avatar303,
-				avatar304,
-				avatar305,
-				avatar306,
-				avatar307,
-				avatar308,
-				avatar309,
-				avatar3010,
-				e327769.gif,
-				e400217.gif,
-				e400823.gif,
-				e400824.gif,
-				e400832.gif,
-				e400850.gif,
-				e400932.gif,
-				yao,
-			);
-			target = 20401F182EE4130A00FADDB4 /* SendyDynamicTests */;
-		};
 		20E703382EEC2D7C00E56640 /* Exceptions for "SendyDynamic" folder in "SendyDynamicTests" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
@@ -83,19 +53,6 @@
 			path = SendyDynamicTests;
 			sourceTree = "<group>";
 		};
-		208E591A2EEDA5B300D3D327 /* dynamicYi */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = dynamicYi;
-			sourceTree = "<group>";
-		};
-		20CC23052EEFA7A700B92382 /* dynamicYao */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-				20CC23262EEFA7D100B92382 /* Exceptions for "dynamicYao" folder in "SendyDynamicTests" target */,
-			);
-			path = dynamicYao;
-			sourceTree = "<group>";
-		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -119,7 +76,6 @@
 		2040199F2EE3D24400FADDB4 = {
 			isa = PBXGroup;
 			children = (
-				2040241B2EE42DC100FADDB4 /* Assets */,
 				204019C52EE3D24800FADDB4 /* SendyDynamicUITests */,
 				20401F1A2EE4130A00FADDB4 /* SendyDynamicTests */,
 				204019A92EE3D24400FADDB4 /* Products */,
@@ -134,24 +90,6 @@
 				20401F192EE4130A00FADDB4 /* SendyDynamicTests.xctest */,
 			);
 			name = Products;
-			sourceTree = "<group>";
-		};
-		2040241B2EE42DC100FADDB4 /* Assets */ = {
-			isa = PBXGroup;
-			children = (
-				207515992EE43C3700837F45 /* photos */,
-				2040241F2EE42F0500FADDB4 /* dynamicInfo.json */,
-			);
-			path = Assets;
-			sourceTree = "<group>";
-		};
-		207515992EE43C3700837F45 /* photos */ = {
-			isa = PBXGroup;
-			children = (
-				20CC23052EEFA7A700B92382 /* dynamicYao */,
-				208E591A2EEDA5B300D3D327 /* dynamicYi */,
-			);
-			path = photos;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -171,8 +109,6 @@
 			);
 			fileSystemSynchronizedGroups = (
 				204019AA2EE3D24400FADDB4 /* SendyDynamic */,
-				208E591A2EEDA5B300D3D327 /* dynamicYi */,
-				20CC23052EEFA7A700B92382 /* dynamicYao */,
 			);
 			name = SendyDynamic;
 			packageProductDependencies = (
@@ -196,8 +132,6 @@
 			);
 			fileSystemSynchronizedGroups = (
 				20401F1A2EE4130A00FADDB4 /* SendyDynamicTests */,
-				208E591A2EEDA5B300D3D327 /* dynamicYi */,
-				20CC23052EEFA7A700B92382 /* dynamicYao */,
 			);
 			name = SendyDynamicTests;
 			packageProductDependencies = (
@@ -250,7 +184,6 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				204024202EE42F0500FADDB4 /* dynamicInfo.json in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -258,7 +191,6 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				204024212EE42F0500FADDB4 /* dynamicInfo.json in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

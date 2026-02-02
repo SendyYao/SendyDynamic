@@ -41,6 +41,16 @@ final class ImageLoaderOP {
         }
     }
     
+    func loadLocalImage(named name: String) -> UIImage? {
+        guard let url = Bundle.main.url(forResource: name, withExtension: nil) else {
+            return nil
+        }
+        guard let data = try? Data(contentsOf: url) else {
+            return nil
+        }
+        return UIImage(data: data)
+    }
+    
     private func shedule() {
         guard running < maxConcurrent, !pending.isEmpty else { return }
         
