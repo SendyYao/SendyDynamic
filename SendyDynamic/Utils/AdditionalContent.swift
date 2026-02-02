@@ -31,7 +31,7 @@ final class AdditionalContent {
     func fetchHitokoto() async -> String {
         if hasFetchedHitokoto { return cachedHitokoto }
         
-        guard let apiUrl = URL(string: "https://itab-api.yaonas.space/yiyan/random") else {
+        guard let apiUrl = URL(string: "https://itab-api.yaohub.com/yiyan/random") else {
             return "Invalid URL"
         }
             

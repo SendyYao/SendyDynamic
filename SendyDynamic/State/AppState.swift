@@ -32,7 +32,7 @@ class AppState: ObservableObject {
             dynamicAPI = "http://192.168.2.141:8848/Dynamic/"
         } else {
             print("Not Local Network Env")
-            dynamicAPI = "https://nas-web.yaonas.space/Dynamic/"
+            dynamicAPI = "https://nas-web.yaohub.com/Dynamic/"
         }
         
         print("Dynamic API set to: \(dynamicAPI)")
