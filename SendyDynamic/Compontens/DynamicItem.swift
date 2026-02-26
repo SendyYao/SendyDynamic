@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import Photos
 
 // 定义 TextWithEmotions 结构体
 struct TextWithEmotions: Codable {
@@ -179,7 +180,7 @@ struct DynamicPostItem: View {
                 }
                 .padding(.bottom, 8)
                 
-                TextWithEmojis(content: content, emojis: emojis)
+                TextWithEmojis(content: content, emojis: emojis, needInteract: true, isTextInteracting: $isTextInteracting)
                     .padding(.bottom, 12)
                 
                 if !imgList.isEmpty {
@@ -187,6 +188,7 @@ struct DynamicPostItem: View {
                         .frame(maxWidth: .infinity, alignment: .center)
                         .padding()
                 }
+                
                 Text(phoneInfo)
                     .font(.footnote)
                     .foregroundColor(Color("RegularTextForeground"))
@@ -206,11 +208,19 @@ struct DynamicPostItem: View {
                     .padding(.top, 5)
                     .font(.system(size: 12))
                     .foregroundColor(Color(UIColor.rgb(102, 153, 204)))
+                
+                // Comment List
+                VStack(alignment: .leading, spacing: 10) {
+                    ForEach(comments) { comment in
+                        CommentView(comment: comment)
+                        Divider().background(Color("RegularTextForeground").opacity(0.3))
+                    }
+                }
             }
             .frame(maxWidth: 640)
             .frame(maxWidth: .infinity)
             .padding(.horizontal, 12)
-            .cardTapToDismissSelection(isTextInteracting: isTextInteracting)
+//            .cardTapToDismissSelection(isTextInteracting: isTextInteracting)
         }
     }
 }
@@ -364,6 +374,15 @@ struct TextWithEmojis: View {
             Text(content)
                 .font(.system(size: fontSize))
                 .foregroundColor(Color("RegularTextForeground"))
+            
+            ForEach(Array(emojis.enumerated()), id: \.offset) { _, emoji in
+                if let emoji = ImageLoaderOP.shared.loadLocalImage(named: emoji) {
+                    Image(uiImage: emoji)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: emojiSize, height: emojiSize)
+                }
+            }
         }
     }
     
@@ -443,7 +462,7 @@ struct TextWithEmojis: View {
         )
         
         for emoji in emojis {
-            guard let image = UIImage(named: emoji) else { continue }
+            guard let image = ImageLoaderOP.shared.loadLocalImage(named: emoji) else { continue }
             
             let attachment = NSTextAttachment()
             attachment.image = image
@@ -474,6 +493,7 @@ struct TextWithEmojis: View {
                             width: geo.size.width,
                             dynamicHeight: $textHeight,
                             onLongPress: {
+                                print("onLongPress")
                                 UIImpactFeedbackGenerator(style: .medium).impactOccurred()
                                 isPressed = true
                                 
@@ -515,10 +535,11 @@ enum ImageSource {
     }
 }
 
-struct NetworkImageView: View {
+struct NetworkImageView<Content: View>: View {
     
     let url: URL
     let size: CGFloat
+    let content: (UIImage) -> Content
     
     @State private var image: UIImage?
     @State private var isLoading = false
@@ -526,9 +547,7 @@ struct NetworkImageView: View {
     var body: some View {
         Group {
             if let image = image {
-                Image(uiImage: image)
-                    .resizable()
-                    .scaledToFill()
+                content(image)
             } else {
                 ProgressView()
                     .onAppear {
@@ -568,7 +587,47 @@ struct ImageBox: View {
     var imgList: [String] // 图片列表
     
     @State private var loadedImages: Set<String> = []
+    @State private var selectedImage: ViewerImage?
+    
     private let imageLoader = ImageLoaderOP.shared
+    
+    @ViewBuilder
+    private func imageMenuContent(for image: UIImage) -> some View {
+        Button {
+            print("Save photos")
+            saveImageToPhotos(image)
+        } label: {
+            Label("Save this photo", systemImage: "square.and.arrow.down.fill")
+        }
+    }
+    
+    private func saveImageToPhotos(_ image: UIImage) {
+        
+        guard let jpegData = image.jpegData(compressionQuality: 1.0) else {
+            print("Can't convert this image")
+            return
+        }
+        
+        PHPhotoLibrary.requestAuthorization(for: .addOnly) { status in
+            if status == .authorized || status == .limited {
+                PHPhotoLibrary.shared().performChanges {
+                    let request = PHAssetCreationRequest.forAsset()
+                    request.addResource(with: .photo, data: jpegData, options: nil)
+//                    PHAssetChangeRequest.creationRequestForAsset(from: image)
+                } completionHandler: { success, error in
+                    DispatchQueue.main.async {
+                        if success {
+                            print("Save photo successfully")
+                        } else {
+                            print("Save photo failed: \(error?.localizedDescription ?? "")")
+                        }
+                    }
+                }
+            } else {
+                print("No access permission")
+            }
+        }
+    }
     
     var body: some View {
         // 根据图片数量动态调整每行显示的图片数
@@ -609,7 +668,14 @@ struct ImageBox: View {
                             NetworkImageView(
                                 url: url,
                                 size: size
-                            )
+                            ) { image in
+                                Image(uiImage: image)
+                                    .resizable()
+                                    .scaledToFill()
+                                    .contextMenu {
+                                        imageMenuContent(for: image)
+                                    }
+                            }
                         case .local(let name):
                             if let image = ImageLoaderOP.shared.loadLocalImage(named: name) {
                                 Image(uiImage: image)
@@ -618,6 +684,9 @@ struct ImageBox: View {
                                     .frame(width: size, height: size)
                                     .clipped()
                                     .cornerRadius(6)
+                                    .contextMenu {
+                                        imageMenuContent(for: image)
+                                    }
                             }
                         }
                     }
@@ -634,12 +703,14 @@ struct CommentView: View {
         VStack(alignment: .leading, spacing: 8) {
             
             HStack(alignment: .top, spacing: 10) {
-                Image(uiImage: UIImage(imageLiteralResourceName: comment.avatar))
-                    .resizable()
-                    .scaledToFill()
-                    .frame(width: 30, height: 30)
-                    .clipShape(Circle())
-                    .overlay(Circle().stroke(Color("BorderColor"), lineWidth: 1))
+                if let userAvatar = ImageLoaderOP.shared.loadLocalImage(named: comment.avatar) {
+                    Image(uiImage: userAvatar)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: 30, height: 30)
+                        .clipShape(Circle())
+                        .overlay(Circle().stroke(Color("BorderColor"), lineWidth: 1))
+                }
                 
                 VStack(alignment: .leading, spacing: 3) {
                     
@@ -678,12 +749,14 @@ struct ReplyView: View {
     var body: some View {
         HStack(alignment: .top, spacing: 10) {
             // 头像
-            Image(uiImage: UIImage(imageLiteralResourceName: reply.avatar))
-                .resizable()
-                .scaledToFill()
-                .frame(width: 30, height: 30)
-                .clipShape(Circle())
-                .overlay(Circle().stroke(Color("BorderColor"), lineWidth: 1))
+            if let userAvatar = ImageLoaderOP.shared.loadLocalImage(named: reply.avatar) {
+                Image(uiImage: userAvatar)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 30, height: 30)
+                    .clipShape(Circle())
+                    .overlay(Circle().stroke(Color("BorderColor"), lineWidth: 1))
+            }
             
             VStack(alignment: .leading, spacing: 3) {
                 
