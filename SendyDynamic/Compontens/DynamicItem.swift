@@ -675,6 +675,9 @@ struct ImageBox: View {
                                     .contextMenu {
                                         imageMenuContent(for: image)
                                     }
+                                    .onTapGesture {
+                                        selectedImage = ViewerImage(image: image)
+                                    }
                             }
                         case .local(let name):
                             if let image = ImageLoaderOP.shared.loadLocalImage(named: name) {
@@ -687,12 +690,87 @@ struct ImageBox: View {
                                     .contextMenu {
                                         imageMenuContent(for: image)
                                     }
+                                    .onTapGesture {
+                                        selectedImage = ViewerImage(image: image)
+                                    }
                             }
                         }
                     }
                 }
             }
             .padding(8)
+        }
+        .fullScreenCover(item: $selectedImage) { item in
+            ImageViewer(image: item.image)
+                .presentationBackground(.clear)
+        }
+    }
+}
+
+struct ViewerImage: Identifiable {
+    let id = UUID()
+    let image: UIImage
+}
+
+// 2026-03-09 LightBox Image
+struct ImageViewer: View {
+    let image: UIImage
+    @Environment(\.dismiss) private var dismiss
+    @State private var scale: CGFloat = 1
+    @State private var offset: CGSize = .zero
+    @State private var lastOffset: CGSize = .zero
+    
+    var body: some View {
+        ZStack {
+            
+            Color.black.opacity(0.8)
+                .ignoresSafeArea()
+                .onTapGesture {
+                    dismiss()
+                }
+            
+            Image(uiImage: image)
+                .resizable()
+                .scaledToFit()
+                .padding()
+                .scaleEffect(scale)
+                .offset(offset)
+                .gesture(
+                    SimultaneousGesture(
+                        MagnificationGesture()
+                            .onChanged { value in
+                                scale = value
+                            }
+                            .onEnded {value in
+                                if scale < 1 {
+                                    scale = 1
+                                }
+                            }
+                        ,
+                        DragGesture()
+                            .onChanged { value in
+                                offset = CGSize(
+                                    width: lastOffset.width + value.translation.width,
+                                    height: lastOffset.height + value.translation.height
+                                )
+                            }
+                            .onEnded { _ in
+                                lastOffset = offset
+                            }
+//                            .onEnded { value in
+//                                if abs(value.translation.height) > 350 {
+//                                    withAnimation {
+//                                        dismiss()
+//                                    }
+//                                }
+//                            }
+                    )
+                )
+                .onTapGesture(count: 2) {
+                    withAnimation {
+                        scale = scale > 1 ? 1 : 2.5
+                    }
+                }
         }
     }
 }
