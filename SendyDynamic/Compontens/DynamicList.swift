@@ -15,6 +15,7 @@ struct DynamicList: View {
     @Binding var userIndex: Int
     @Binding var currentUser: CurrentUser
     @State private var hasLoadedData: Bool = false
+    @State private var viewerImage: ViewerImage?
     
     var body: some View {
         // SplitView
@@ -39,7 +40,8 @@ struct DynamicList: View {
                             imgList: post.imgList ?? [],
                             phoneInfo: post.phoneInfo ?? "",
                             likeUser: post.likedUser ?? "",
-                            comments: post.comments ?? []
+                            comments: post.comments ?? [],
+                            viewerImage: $viewerImage
                         )
                         .id(post.id)
                     }
@@ -79,6 +81,10 @@ struct DynamicList: View {
                 // 调用 postData.loadAttachInfo，确保在 dynamicAPI 更新后执行
                 await data.loadAttachInfo(apiUrl: state.dynamicAPI)
             }
+        }
+        .fullScreenCover(item: $viewerImage) { item in
+            ImageViewer(image: item.image)
+                .presentationBackground(.clear)
         }
         .navigationTitle("动态列表")
     }

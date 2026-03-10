@@ -157,6 +157,7 @@ struct DynamicPostItem: View {
     var likeUser: String
     var comments: [SingleComment]
     @State private var isTextInteracting = false
+    @Binding var viewerImage: ViewerImage?
     
     var body: some View {
         CardView {
@@ -184,7 +185,7 @@ struct DynamicPostItem: View {
                     .padding(.bottom, 12)
                 
                 if !imgList.isEmpty {
-                    ImageBox(imgList: imgList)
+                    ImageBox(imgList: imgList, viewerImage: $viewerImage)
                         .frame(maxWidth: .infinity, alignment: .center)
                         .padding()
                 }
@@ -587,9 +588,7 @@ struct ImageBox: View {
     var imgList: [String] // 图片列表
     
     @State private var loadedImages: Set<String> = []
-    @State private var selectedImage: ViewerImage?
-    
-    private let imageLoader = ImageLoaderOP.shared
+    @Binding var viewerImage: ViewerImage?
     
     @ViewBuilder
     private func imageMenuContent(for image: UIImage) -> some View {
@@ -654,6 +653,43 @@ struct ImageBox: View {
         if appState.platform == .iPhone {
             size = size / 1.35
         }
+        
+        func imageView(_ image: UIImage) -> some View {
+            Button {
+                viewerImage = ViewerImage(id: UUID(), image: image)
+            } label: {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: size, height: size)
+                    .clipped()
+                    .cornerRadius(6)
+            }
+            .buttonStyle(.plain)
+            .contextMenu {
+                imageMenuContent(for: image)
+            }
+        }
+        
+        @ViewBuilder
+        func imageCell(for fileName: String) -> some View {
+            let source = ImageSource(fileName: fileName, dynamicAPI: appState.dynamicAPI)
+            
+            switch source {
+            case .network(let url):
+                NetworkImageView(
+                    url: url,
+                    size: size
+                ) { image in
+                    imageView(image)
+                }
+                
+            case .local(let name):
+                if let image = ImageLoaderOP.shared.loadLocalImage(named: name) {
+                    imageView(image)
+                }
+            }
+        }
 
         // 使用 LazyVGrid 来创建网格布局
         let rows = Array(repeating: GridItem(.fixed(size), spacing: 8), count: crossAxisCount)
@@ -661,54 +697,16 @@ struct ImageBox: View {
             LazyHGrid(rows: rows, spacing: 8) {
                 ForEach(imgList, id: \.self) { fileName in
                     // 显示每张图片
-                    let source = ImageSource(fileName: fileName, dynamicAPI: appState.dynamicAPI)
-                    Group {
-                        switch source {
-                        case .network(let url):
-                            NetworkImageView(
-                                url: url,
-                                size: size
-                            ) { image in
-                                Image(uiImage: image)
-                                    .resizable()
-                                    .scaledToFill()
-                                    .contextMenu {
-                                        imageMenuContent(for: image)
-                                    }
-                                    .onTapGesture {
-                                        selectedImage = ViewerImage(image: image)
-                                    }
-                            }
-                        case .local(let name):
-                            if let image = ImageLoaderOP.shared.loadLocalImage(named: name) {
-                                Image(uiImage: image)
-                                    .resizable()
-                                    .scaledToFill()
-                                    .frame(width: size, height: size)
-                                    .clipped()
-                                    .cornerRadius(6)
-                                    .contextMenu {
-                                        imageMenuContent(for: image)
-                                    }
-                                    .onTapGesture {
-                                        selectedImage = ViewerImage(image: image)
-                                    }
-                            }
-                        }
-                    }
+                    imageCell(for: fileName)
                 }
             }
             .padding(8)
-        }
-        .fullScreenCover(item: $selectedImage) { item in
-            ImageViewer(image: item.image)
-                .presentationBackground(.clear)
         }
     }
 }
 
 struct ViewerImage: Identifiable {
-    let id = UUID()
+    let id: UUID
     let image: UIImage
 }
 
