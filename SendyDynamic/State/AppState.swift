@@ -13,6 +13,8 @@ class AppState: ObservableObject {
     @Published var platform: Platform = .iPad
     @Published var dynamicAPI: String = ""
     @Published var apiReady = false
+    // TODO CurrentUser to AppState
+    @Published var currentUser: CurrentUser = .yi
     
     func showCurrentNetworkInfo() async -> Void {
         let utils = SendyUtils.shared
@@ -42,5 +44,22 @@ class AppState: ObservableObject {
     enum Platform {
         case iPhone
         case iPad
+    }
+    
+    enum CurrentUser {
+        case yi
+        case yao
+        
+        var nick: String {
+            self == .yi ? "弈" : "垚"
+        }
+        
+        var avatar: String {
+            self == .yi ? "50" : "yao"
+        }
+        
+        var index: Int {
+            self == .yi ? 0 : 1
+        }
     }
 }

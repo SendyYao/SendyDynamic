@@ -13,8 +13,6 @@ struct PadContentView: View {
     @EnvironmentObject var appState: AppState
     @StateObject private var postData = DynamicPostData()
     @State private var scrollTarget: UUID?
-    @State private var userIndex: Int = 0
-    @State private var currentUser: CurrentUser = .yi
     
     var body: some View {
         NavigationView {
@@ -26,11 +24,10 @@ struct PadContentView: View {
                 },
                 onSwitchedIndex: { index in
                     print("Taped index: \(index); Ready to switch, now dynamicAPI: \(appState.dynamicAPI)")
-                    currentUser = index == 0 ? .yi : .yao
-                    userIndex = index
+                    appState.currentUser = index == 0 ? .yi : .yao
                 }
             )
-            DynamicList(data: postData, scrollTarget: $scrollTarget, userIndex: $userIndex, currentUser: $currentUser)
+            DynamicList(data: postData, scrollTarget: $scrollTarget)
         }
         .navigationBarTitle("Yi's QQ Dynamic", displayMode: .inline)
     }

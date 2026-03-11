@@ -71,8 +71,6 @@ struct PhoneContentView: View {
     @EnvironmentObject var appState: AppState
     @StateObject private var postData = DynamicPostData()
     @State private var scrollTarget: UUID?
-    @State private var userIndex: Int = 0
-    @State private var currentUser: CurrentUser = .yi
     @State private var path = NavigationPath()
     
     var body: some View {
@@ -89,9 +87,7 @@ struct PhoneContentView: View {
                 
                 DynamicList(
                     data: postData,
-                    scrollTarget: $scrollTarget,
-                    userIndex: $userIndex,
-                    currentUser: $currentUser
+                    scrollTarget: $scrollTarget
                 )
                 .navigationBarHidden(true)
                 .navigationDestination(for: PhoneRoute.self) { route in
@@ -104,8 +100,7 @@ struct PhoneContentView: View {
                             },
                             onSwitchedIndex: { index in
                                 print("Taped index: \(index); Ready to switch, now dynamicAPI: \(appState.dynamicAPI)")
-                                currentUser = index == 0 ? .yi : .yao
-                                userIndex = index
+                                appState.currentUser = index == 0 ? .yi : .yao
                             }
                         )
                     }

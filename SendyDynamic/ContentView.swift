@@ -69,19 +69,6 @@ struct ToolbarContentView: View {
     }
 }
 
-enum CurrentUser {
-    case yi
-    case yao
-    
-    var nick: String {
-        self == .yi ? "弈" : "垚"
-    }
-    
-    var avatar: String {
-        self == .yi ? "50" : "yao"
-    }
-}
-
 struct ContentView: View {
     
     @EnvironmentObject var appState: AppState

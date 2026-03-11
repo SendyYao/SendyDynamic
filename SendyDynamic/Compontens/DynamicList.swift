@@ -12,8 +12,6 @@ struct DynamicList: View {
     @EnvironmentObject var state: AppState
     @StateObject var data: DynamicPostData
     @Binding var scrollTarget: UUID?
-    @Binding var userIndex: Int
-    @Binding var currentUser: CurrentUser
     @State private var hasLoadedData: Bool = false
     @State private var viewerImage: ViewerImage?
     
@@ -32,8 +30,8 @@ struct DynamicList: View {
                     ForEach(data.infoList) { post in
                         DynamicPostItem(
                             id: post.id,
-                            userNick: currentUser.nick,
-                            userAvatar: currentUser.avatar,
+                            userNick: state.currentUser.nick,
+                            userAvatar: state.currentUser.avatar,
                             postTime: post.dateTime,
                             content: post.textContent ?? "",
                             emojis: post.textContentEmojis ?? [],
@@ -58,14 +56,14 @@ struct DynamicList: View {
                     }
                 }
             }
-            .onChange(of: userIndex) {
+            .onChange(of: state.currentUser.index) {
                 
                 DispatchQueue.main.async {
                     proxy.scrollTo("top", anchor: .top)
                 }
                 
                 Task {
-                    await data.loadAnotherUserInfo(index: userIndex, apiUrl: state.dynamicAPI)
+                    await data.loadAnotherUserInfo(index: state.currentUser.index, apiUrl: state.dynamicAPI)
                 }
             }
             .onAppear {

@@ -15,8 +15,8 @@ struct User {
 
 struct SidebarSwitcher: View {
     
+    @EnvironmentObject var appState: AppState
     @State private var isExpanded: Bool = false   // 默认折叠
-    @State private var selectedIndex: Int = 0   // 默认高亮第一个
     
     let onSwitched: (Int) -> Void
     
@@ -24,6 +24,9 @@ struct SidebarSwitcher: View {
         User(Avatar: "50", Label: "Yi"),
         User(Avatar: "yao", Label: "Yao")
     ]
+    
+    private let imageLoader = ImageLoaderOP.shared
+    
     var body: some View {
         DisclosureGroup(
             isExpanded: $isExpanded,
@@ -31,25 +34,27 @@ struct SidebarSwitcher: View {
                 HStack(spacing: 50) {
                     ForEach(Array(userList.enumerated()), id: \.offset) {index, user in
                         VStack(alignment: .center) {
-                            Image(uiImage: UIImage(imageLiteralResourceName: user.Avatar))
-                                .resizable()
-                                .scaledToFill()
-                                .frame(width: 48, height: 48)
-                                .clipShape(Circle())
-                                .overlay(
-                                    Circle()
-                                        .stroke(
-                                            selectedIndex == index ? Color.blue : Color.clear,
-                                            lineWidth: 2
-                                        )
-                                )
-                                .onTapGesture {
-                                    selectedIndex = index          // 🔥 切换高亮
-                                    onSwitched(index)
-                                }
+                            if let avatar = imageLoader.loadLocalImage(named: user.Avatar) {
+                                Image(uiImage: avatar)
+                                    .resizable()
+                                    .scaledToFill()
+                                    .frame(width: 48, height: 48)
+                                    .clipShape(Circle())
+                                    .overlay(
+                                        Circle()
+                                            .stroke(
+                                                appState.currentUser.index == index ? Color.blue : Color.clear,
+                                                lineWidth: 2
+                                            )
+                                    )
+                                    .onTapGesture {
+                                        appState.currentUser = index == 0 ? .yi : .yao
+                                        onSwitched(index)
+                                    }
+                            }
                             Text(user.Label)
-                                .font(selectedIndex == index ? .caption.bold() : .caption)
-                                .foregroundColor(selectedIndex == index ? .primary : .gray)
+                                .font(appState.currentUser.index == index ? .caption.bold() : .caption)
+                                .foregroundColor(appState.currentUser.index == index ? .primary : .gray)
                         }
                     }
                 }
